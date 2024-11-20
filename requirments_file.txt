@@ -1,0 +1,19 @@
+Omegle is a Fun energitic web application  that helps 
+Strangers meet online and make meanignful conversations such as Learn language 
+Practice Talking 
+For Start it offers only voice / Video  with chat with random users
+No registration is Needed
+No Payment
+the usual flow is that user visit the landing page 
+and there is a button to Start Looking for a Strangers
+it Takes the user to the page where we automatically match them with a random user
+The user has the Choice to : 
+    - Stop the Call and Exit to main page
+    - Skip and try to find next Random Person 
+    - Activate / deactivate Camera
+    - Activate / deactivate Microphone
+    - Send and Receive Chat
+it shows the number of online users on the top 
+
+User Can Write Their name otherwise Assigned a Default Random Name.
+
