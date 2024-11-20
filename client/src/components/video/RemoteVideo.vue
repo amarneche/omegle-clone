@@ -1,20 +1,22 @@
 <template>
-  <div class="absolute inset-0">
+  <div class="relative w-full h-full bg-gray-900">
     <video
       ref="videoRef"
       class="w-full h-full object-cover"
       autoplay
       playsinline
-    ></video>
-    <div class="absolute top-4 left-4 flex items-center gap-2 bg-black/50 px-3 py-1.5 rounded-full">
-      <div class="w-2 h-2 rounded-full bg-green-400"></div>
-      <span class="text-white text-sm">{{ partnerName || 'Waiting...' }}</span>
+    />
+    <div 
+      v-if="!stream" 
+      class="absolute inset-0 flex items-center justify-center text-gray-400"
+    >
+      Waiting for partner's video...
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 
 const props = defineProps({
   stream: {
@@ -31,7 +33,15 @@ const videoRef = ref(null)
 
 watch(() => props.stream, (newStream) => {
   if (videoRef.value && newStream) {
+    console.log('Setting remote video stream')
     videoRef.value.srcObject = newStream
+  }
+}, { immediate: true })
+
+onMounted(() => {
+  if (videoRef.value && props.stream) {
+    console.log('Setting initial remote video stream')
+    videoRef.value.srcObject = props.stream
   }
 })
 </script> 

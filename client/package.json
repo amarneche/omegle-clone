@@ -12,8 +12,10 @@
   "dependencies": {
     "@tailwindcss/forms": "^0.5.9",
     "lucide-vue-next": "^0.279.0",
+    "peerjs": "^1.5.4",
     "pinia": "^2.0.0",
     "socket.io-client": "^4.7.0",
+    "uuid": "^11.0.3",
     "vue": "^3.3.0",
     "vue-router": "^4.0.0"
   },

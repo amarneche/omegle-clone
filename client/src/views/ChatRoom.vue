@@ -90,8 +90,8 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { onBeforeRouteLeave, useRouter } from 'vue-router'
 import { useWebRTCStore } from '@/stores/webrtc'
 import { useSocketStore } from '@/stores/socket'
 import { useSettingsStore } from '@/stores/settings'
@@ -108,8 +108,6 @@ const webrtcStore = useWebRTCStore()
 const socketStore = useSocketStore()
 const settingsStore = useSettingsStore()
 
-const localVideo = ref(null)
-const remoteVideo = ref(null)
 const isSearching = ref(false)
 const partnerName = ref('')
 const onlineUsers = ref(0)
@@ -117,15 +115,12 @@ const isSettingsOpen = ref(false)
 const mood = computed(() => settingsStore.mood)
 
 onMounted(async () => {
-  const success = await webrtcStore.initializeMedia()
+  // Initialize WebRTC with PeerJS
+  const success = await webrtcStore.initialize()
   if (!success) {
     alert('Failed to access camera/microphone')
     router.push('/')
     return
-  }
-
-  if (localVideo.value) {
-    localVideo.value.srcObject = webrtcStore.localStream
   }
 
   setupSocketListeners()
@@ -135,62 +130,46 @@ onUnmounted(() => {
   webrtcStore.cleanup()
 })
 
-watch(() => webrtcStore.remoteStream, (newStream) => {
-  if (remoteVideo.value && newStream) {
-    remoteVideo.value.srcObject = newStream
-  }
-})
-
 const setupSocketListeners = () => {
-  socketStore.socket.on('partner-found', async ({ partnerId, username }) => {
+  socketStore.socket.on('partner-found', async ({ peerId, username }) => {
     try {
+      console.log('Partner found:', username, peerId)
       isSearching.value = false
       partnerName.value = username
-      await webrtcStore.createPeerConnection(partnerId)
-      const offer = await webrtcStore.createOffer()
-      socketStore.socket.emit('offer', { offer, to: partnerId })
+      currentPartnerId.value = peerId
+      
+      // Call the peer using PeerJS
+      await webrtcStore.callPeer(peerId)
     } catch (error) {
       console.error('Error in partner-found handler:', error)
       endCall()
     }
   })
 
-  socketStore.socket.on('offer', async ({ offer, from }) => {
-    try {
-      await webrtcStore.createPeerConnection(from)
-      const answer = await webrtcStore.handleOffer(offer)
-      socketStore.socket.emit('answer', { answer, to: from })
-    } catch (error) {
-      console.error('Error in offer handler:', error)
-      endCall()
-    }
+  socketStore.socket.on('call-ended', (partnerId) => {
+    console.log('Call ended by partner:', partnerId)
+    endCurrentCall()
+    // Automatically start looking for new partner
+    findPartner()
   })
 
-  socketStore.socket.on('answer', async ({ answer, from }) => {
-    try {
-      await webrtcStore.handleAnswer(answer)
-    } catch (error) {
-      console.error('Error in answer handler:', error)
-      endCall()
-    }
+  socketStore.socket.on('partner-left', () => {
+    console.log('Partner left the chat')
+    endCurrentCall()
+    // Don't automatically find new partner when partner leaves chat
   })
 
-  socketStore.socket.on('ice-candidate', async ({ candidate, from }) => {
-    try {
-      await webrtcStore.handleIceCandidate(candidate)
-    } catch (error) {
-      console.error('Error in ice-candidate handler:', error)
-    }
+  socketStore.socket.on('waiting-for-partner', () => {
+    console.log('Waiting for partner...')
+    isSearching.value = true
   })
 
   socketStore.socket.on('online-users', (count) => {
     onlineUsers.value = count
   })
-
-  socketStore.socket.on('call-ended', () => {
-    endCall()
-  })
 }
+
+const currentPartnerId = ref(null)
 
 const findPartner = () => {
   isSearching.value = true
@@ -198,10 +177,16 @@ const findPartner = () => {
 }
 
 const endCall = () => {
+  // End call with current partner and look for new one
+  socketStore.socket.emit('end-call', currentPartnerId.value)
+  endCurrentCall()
+  findPartner()
+}
+
+const endCurrentCall = () => {
   webrtcStore.cleanup()
-  socketStore.socket.emit('end-call')
+  currentPartnerId.value = null
   partnerName.value = ''
-  isSearching.value = false
 }
 
 const toggleCamera = () => {
@@ -211,6 +196,12 @@ const toggleCamera = () => {
 const toggleMicrophone = () => {
   webrtcStore.toggleMicrophone()
 }
+
+onBeforeRouteLeave(() => {
+  // Notify server when leaving chat page
+  socketStore.socket.emit('leave-chat')
+  webrtcStore.cleanup()
+})
 </script>
 
 <style scoped>

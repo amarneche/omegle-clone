@@ -1,21 +1,17 @@
 <template>
-  <div class="absolute bottom-20 md:bottom-4 right-4 w-32 h-48 md:w-40 md:h-56 bg-gray-800 rounded-lg overflow-hidden shadow-lg">
+  <div class="absolute bottom-4 right-4 w-32 h-48 bg-gray-900 rounded-lg overflow-hidden shadow-lg">
     <video
       ref="videoRef"
       class="w-full h-full object-cover mirror"
       autoplay
-      muted
       playsinline
-    ></video>
-    <div class="absolute top-2 left-2 flex items-center gap-2 bg-black/50 px-2 py-1 rounded-full">
-      <div class="w-1.5 h-1.5 rounded-full bg-green-400"></div>
-      <span class="text-white text-xs">You</span>
-    </div>
+      muted
+    />
   </div>
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 
 const props = defineProps({
   stream: {
@@ -28,7 +24,15 @@ const videoRef = ref(null)
 
 watch(() => props.stream, (newStream) => {
   if (videoRef.value && newStream) {
+    console.log('Setting local video stream')
     videoRef.value.srcObject = newStream
+  }
+}, { immediate: true })
+
+onMounted(() => {
+  if (videoRef.value && props.stream) {
+    console.log('Setting initial local video stream')
+    videoRef.value.srcObject = props.stream
   }
 })
 </script>

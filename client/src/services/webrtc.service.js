@@ -3,12 +3,14 @@ class WebRTCService {
     this.peerConnection = null
     this.senders = new Map()
     
-    // Get ICE servers from environment
     this.configuration = {
-      iceServers:  [
-            { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun1.l.google.com:19302' }
-          ]
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'stun:stun2.l.google.com:19302' },
+        { urls: 'stun:stun3.l.google.com:19302' },
+        { urls: 'stun:stun4.l.google.com:19302' }
+      ]
     }
   }
 
@@ -18,7 +20,7 @@ class WebRTCService {
         this.close()
       }
       this.peerConnection = new RTCPeerConnection(this.configuration)
-      this.senders.clear()
+      console.log('Created new peer connection:', this.peerConnection)
       return this.peerConnection
     } catch (error) {
       console.error('Error creating peer connection:', error)
@@ -28,14 +30,13 @@ class WebRTCService {
 
   addTrack(track, stream) {
     try {
-      if (!this.peerConnection || this.peerConnection.signalingState === 'closed') {
-        throw new Error('PeerConnection is not initialized or is closed')
-      }
-
+      console.log('Adding track to peer connection:', track.kind)
       const existingSender = this.senders.get(track.kind)
       if (existingSender) {
+        console.log('Replacing existing track:', track.kind)
         existingSender.replaceTrack(track)
       } else {
+        console.log('Adding new track:', track.kind)
         const sender = this.peerConnection.addTrack(track, stream)
         this.senders.set(track.kind, sender)
       }
@@ -47,17 +48,14 @@ class WebRTCService {
 
   async createOffer() {
     try {
-      if (!this.peerConnection || this.peerConnection.signalingState === 'closed') {
-        throw new Error('PeerConnection is not initialized or is closed')
-      }
-
+      console.log('Creating offer...')
       const offer = await this.peerConnection.createOffer({
         offerToReceiveAudio: true,
-        offerToReceiveVideo: true,
-        voiceActivityDetection: true
+        offerToReceiveVideo: true
       })
-
-      await this.peerConnection.setLocalDescription(new RTCSessionDescription(offer))
+      
+      console.log('Setting local description (offer):', offer.type)
+      await this.peerConnection.setLocalDescription(offer)
       return offer
     } catch (error) {
       console.error('Error creating offer:', error)
@@ -67,13 +65,14 @@ class WebRTCService {
 
   async handleOffer(offer) {
     try {
-      if (!this.peerConnection || this.peerConnection.signalingState === 'closed') {
-        throw new Error('PeerConnection is not initialized or is closed')
-      }
-
+      console.log('Setting remote description (offer):', offer.type)
       await this.peerConnection.setRemoteDescription(new RTCSessionDescription(offer))
+      
+      console.log('Creating answer...')
       const answer = await this.peerConnection.createAnswer()
-      await this.peerConnection.setLocalDescription(new RTCSessionDescription(answer))
+      
+      console.log('Setting local description (answer):', answer.type)
+      await this.peerConnection.setLocalDescription(answer)
       return answer
     } catch (error) {
       console.error('Error handling offer:', error)
@@ -83,15 +82,12 @@ class WebRTCService {
 
   async handleAnswer(answer) {
     try {
-      if (!this.peerConnection || this.peerConnection.signalingState === 'closed') {
-        throw new Error('PeerConnection is not initialized or is closed')
-      }
-
       if (this.peerConnection.signalingState === 'stable') {
-        console.log('Connection is already stable, ignoring answer')
+        console.log('Connection already stable, ignoring answer')
         return
       }
-
+      
+      console.log('Setting remote description (answer):', answer.type)
       await this.peerConnection.setRemoteDescription(new RTCSessionDescription(answer))
     } catch (error) {
       console.error('Error handling answer:', error)
@@ -102,9 +98,10 @@ class WebRTCService {
   async addIceCandidate(candidate) {
     try {
       if (!this.peerConnection || !this.peerConnection.remoteDescription) {
-        console.log('Queuing ICE candidate')
+        console.log('Skipping ICE candidate: no remote description')
         return
       }
+      console.log('Adding ICE candidate:', candidate.candidate)
       await this.peerConnection.addIceCandidate(new RTCIceCandidate(candidate))
     } catch (error) {
       console.error('Error adding ICE candidate:', error)
@@ -113,45 +110,52 @@ class WebRTCService {
   }
 
   onTrack(callback) {
-    if (this.peerConnection) {
-      this.peerConnection.ontrack = callback
+    if (!this.peerConnection) return
+    console.log('Setting ontrack callback')
+    this.peerConnection.ontrack = (event) => {
+      console.log('Received remote track:', event.track.kind)
+      callback(event)
     }
   }
 
   onIceCandidate(callback) {
-    if (this.peerConnection) {
-      this.peerConnection.onicecandidate = callback
-    }
+    if (!this.peerConnection) return
+    console.log('Setting onicecandidate callback')
+    this.peerConnection.onicecandidate = callback
   }
 
   onConnectionStateChange(callback) {
-    if (this.peerConnection) {
-      this.peerConnection.onconnectionstatechange = callback
+    if (!this.peerConnection) return
+    console.log('Setting onconnectionstatechange callback')
+    this.peerConnection.onconnectionstatechange = () => {
+      console.log('Connection state changed:', this.peerConnection.connectionState)
+      callback()
     }
-  }
-
-  getSignalingState() {
-    return this.peerConnection ? this.peerConnection.signalingState : 'closed'
   }
 
   close() {
     if (this.peerConnection) {
-      try {
-        this.senders.forEach(sender => {
-          try {
-            this.peerConnection.removeTrack(sender)
-          } catch (e) {
-            console.warn('Error removing track:', e)
+      console.log('Closing peer connection')
+      this.senders.forEach(sender => {
+        try {
+          if (sender.track) {
+            sender.track.stop()
           }
-        })
-        this.senders.clear()
+          this.peerConnection.removeTrack(sender)
+        } catch (e) {
+          console.warn('Error removing track:', e)
+        }
+      })
+      this.senders.clear()
 
-        this.peerConnection.ontrack = null
-        this.peerConnection.onicecandidate = null
-        this.peerConnection.onconnectionstatechange = null
+      this.peerConnection.ontrack = null
+      this.peerConnection.onicecandidate = null
+      this.peerConnection.onconnectionstatechange = null
+      
+      try {
         this.peerConnection.close()
       } catch (err) {
-        console.error('Error closing peer connection:', err)
+        console.warn('Error closing peer connection:', err)
       }
       this.peerConnection = null
     }

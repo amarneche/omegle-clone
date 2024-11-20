@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
+import PeerService from '@/services/peer.service'
 import { useSocketStore } from './socket'
-import webRTCService from '../services/webrtc.service'
 
 export const useWebRTCStore = defineStore('webrtc', {
   state: () => ({
@@ -8,122 +8,66 @@ export const useWebRTCStore = defineStore('webrtc', {
     remoteStream: null,
     isCameraOn: true,
     isMicOn: true,
-    isInCall: false,
-    currentPartner: null,
-    connectionState: 'new'
+    peerId: null
   }),
 
   actions: {
-    async initializeMedia() {
+    async initialize() {
       try {
+        // Get media stream
         this.localStream = await navigator.mediaDevices.getUserMedia({
           video: true,
           audio: true
         })
+
+        // Initialize PeerJS
+        const socketStore = useSocketStore()
+        this.peerId = await PeerService.initialize()
+        socketStore.socket.emit('register-peer', this.peerId)
+
+        // Handle incoming calls
+        PeerService.onIncomingCall(async (remoteStream) => {
+          this.remoteStream = remoteStream
+        })
+
         return true
       } catch (error) {
-        console.error('Error accessing media devices:', error)
+        console.error('Failed to initialize:', error)
         return false
       }
     },
 
-    async createPeerConnection(partnerId) {
+    async callPeer(remotePeerId) {
       try {
-        const socketStore = useSocketStore()
-        this.currentPartner = partnerId
-
-        await webRTCService.createPeerConnection()
-
-        // Add local tracks
-        this.localStream.getTracks().forEach(track => {
-          webRTCService.addTrack(track, this.localStream)
-        })
-
-        // Handle remote stream
-        webRTCService.onTrack((event) => {
-          console.log('Received remote track:', event.streams[0])
-          this.remoteStream = event.streams[0]
-        })
-
-        // Handle ICE candidates
-        webRTCService.onIceCandidate((event) => {
-          if (event.candidate) {
-            socketStore.socket.emit('ice-candidate', {
-              candidate: event.candidate,
-              to: this.currentPartner
-            })
-          }
-        })
-
-        // Monitor connection state
-        webRTCService.onConnectionStateChange(() => {
-          this.connectionState = webRTCService.peerConnection.connectionState
-          console.log('Connection state:', this.connectionState)
-        })
-
+        this.remoteStream = await PeerService.call(remotePeerId, this.localStream)
       } catch (error) {
-        console.error('Error in createPeerConnection:', error)
+        console.error('Error calling peer:', error)
         throw error
-      }
-    },
-
-    async createOffer() {
-      try {
-        return await webRTCService.createOffer()
-      } catch (error) {
-        console.error('Error in createOffer:', error)
-        throw error
-      }
-    },
-
-    async handleOffer(offer) {
-      try {
-        return await webRTCService.handleOffer(offer)
-      } catch (error) {
-        console.error('Error in handleOffer:', error)
-        throw error
-      }
-    },
-
-    async handleAnswer(answer) {
-      try {
-        await webRTCService.handleAnswer(answer)
-      } catch (error) {
-        console.error('Error in handleAnswer:', error)
-        throw error
-      }
-    },
-
-    async handleIceCandidate(candidate) {
-      try {
-        await webRTCService.addIceCandidate(candidate)
-      } catch (error) {
-        console.error('Error in handleIceCandidate:', error)
       }
     },
 
     toggleCamera() {
-      const videoTrack = this.localStream.getVideoTracks()[0]
-      videoTrack.enabled = !videoTrack.enabled
-      this.isCameraOn = videoTrack.enabled
+      const videoTrack = this.localStream?.getVideoTracks()[0]
+      if (videoTrack) {
+        videoTrack.enabled = !videoTrack.enabled
+        this.isCameraOn = videoTrack.enabled
+      }
     },
 
     toggleMicrophone() {
-      const audioTrack = this.localStream.getAudioTracks()[0]
-      audioTrack.enabled = !audioTrack.enabled
-      this.isMicOn = audioTrack.enabled
+      const audioTrack = this.localStream?.getAudioTracks()[0]
+      if (audioTrack) {
+        audioTrack.enabled = !audioTrack.enabled
+        this.isMicOn = audioTrack.enabled
+      }
     },
 
     cleanup() {
-      if (this.localStream) {
-        this.localStream.getTracks().forEach(track => track.stop())
+      if (this.remoteStream) {
+        this.remoteStream.getTracks().forEach(track => track.stop())
+        this.remoteStream = null
       }
-      webRTCService.close()
-      this.localStream = null
-      this.remoteStream = null
-      this.isInCall = false
-      this.currentPartner = null
-      this.connectionState = 'new'
+      PeerService.endCall()
     }
   }
 }) 
