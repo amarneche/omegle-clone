@@ -48,17 +48,46 @@ io.on('connection', (socket) => {
   socket.on('set-username', (username) => {
     activeUsers.set(socket.id, {
       username,
-      inCall: false
+      inCall: false,
+      mood: {
+        type: 'casual',
+        tags: []
+      },
+      preferences: {
+        language: 'any'
+      }
     })
     io.emit('online-users', activeUsers.size)
+  })
+
+  socket.on('update-mood', ({ mood, preferences }) => {
+    const user = activeUsers.get(socket.id)
+    if (user) {
+      user.mood = mood
+      user.preferences = preferences
+    }
   })
 
   socket.on('find-partner', () => {
     const user = activeUsers.get(socket.id)
     if (!user || user.inCall) return
 
-    // Find a waiting user who isn't the current user
-    const partner = Array.from(waitingUsers).find(id => id !== socket.id)
+    // Find a compatible partner
+    const partner = Array.from(waitingUsers).find(id => {
+      const potentialPartner = activeUsers.get(id)
+      if (!potentialPartner || id === socket.id) return false
+
+      // Check mood compatibility
+      const moodMatch = user.mood.type === potentialPartner.mood.type
+      
+      // Check language preference
+      const languageMatch = 
+        user.preferences.language === 'any' || 
+        potentialPartner.preferences.language === 'any' ||
+        user.preferences.language === potentialPartner.preferences.language
+
+      return moodMatch && languageMatch
+    })
 
     if (partner) {
       waitingUsers.delete(partner)

@@ -1,9 +1,17 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
+import path from 'path'
 
 export default defineConfig(({ command, mode }) => {
   const config = {
     plugins: [vue()],
+    
+    resolve: {
+      alias: {
+        '@': path.resolve(__dirname, './src')
+      }
+    },
+
     build: {
       sourcemap: false,
       rollupOptions: {
