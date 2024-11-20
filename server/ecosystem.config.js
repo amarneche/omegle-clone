@@ -1,3 +1,5 @@
+require('dotenv').config()
+
 module.exports = {
   apps: [{
     name: 'random-chat-server',
@@ -8,7 +10,7 @@ module.exports = {
     max_memory_restart: '1G',
     env_production: {
       NODE_ENV: 'production',
-      PORT: 3000
+      PORT: process.env.PORT
     }
   }]
 } 

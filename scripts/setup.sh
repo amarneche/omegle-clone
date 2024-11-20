@@ -122,6 +122,7 @@ EOL
 # Make scripts executable
 chmod +x scripts/deploy.sh
 chmod +x scripts/init-letsencrypt.sh
+chmod +x scripts/cleanup.sh
 
 # Create docker network (ignore if exists)
 docker network create chat-network || true
