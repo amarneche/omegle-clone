@@ -4,6 +4,7 @@
 mkdir -p certbot/conf
 mkdir -p certbot/www
 mkdir -p nginx
+mkdir -p client/nginx
 
 # Create nginx template files
 cat > nginx/chat.conf.template << 'EOL'
@@ -99,6 +100,21 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+EOL
+
+# Create default nginx conf for client
+cat > client/nginx/default.conf << 'EOL'
+server {
+    listen 80;
+    server_name localhost;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    location / {
+        try_files $uri $uri/ /index.html;
     }
 }
 EOL

@@ -6,7 +6,7 @@ export $(cat .env | xargs)
 domains=(chat.$DOMAIN_NAME chat-api.$DOMAIN_NAME)
 rsa_key_size=4096
 data_path="./certbot"
-email="" # Add your email here
+email="contact@amarneche.me"  # Replace with your email
 
 # Install certbot certificates
 for domain in "${domains[@]}"; do
@@ -22,6 +22,7 @@ for domain in "${domains[@]}"; do
       --email $email \
       --agree-tos \
       --no-eff-email \
+      --force-renewal \
       -d $domain" certbot
 
   # Start nginx

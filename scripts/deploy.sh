@@ -7,8 +7,20 @@ export $(cat .env | xargs)
 envsubst '${DOMAIN_NAME}' < nginx/chat.conf.template > nginx/chat.conf
 envsubst '${DOMAIN_NAME}' < nginx/api.conf.template > nginx/api.conf
 
-# Start containers
-docker-compose up -d
+# Create necessary directories
+mkdir -p certbot/conf
+mkdir -p certbot/www
+
+# Start nginx first for domain validation
+docker-compose up -d nginx
+
+# Wait for nginx to start
+sleep 5
 
 # Initialize SSL certificates
-./scripts/init-letsencrypt.sh 
+./scripts/init-letsencrypt.sh
+
+# Start all services
+docker-compose up -d
+
+echo "Deployment completed successfully!"
