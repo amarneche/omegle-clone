@@ -10,17 +10,18 @@ class PeerService {
 
   initialize() {
     return new Promise((resolve, reject) => {
-      const host = import.meta.env.VITE_SERVER_URL
-      const protocol = window.location.protocol
-      const isLocalhost = host === 'localhost' || host === '127.0.0.1'
-
       this.peer = new Peer(uuidv4(), {
-        host: "chat-api.amarneche.me",
-        port: protocol === 'https:' ? 443 : 80,
-        path: '/',
-        secure: protocol === 'https:',
-        debug: 2,
-
+        host: '0.peerjs.com',
+        port: 443,
+        secure: true,
+        debug: 3,
+        config: {
+          iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:global.stun.twilio.com:3478' }
+          ]
+        },
+        retryTimer: 10000,
       })
 
       this.peer.on('open', (id) => {
@@ -29,7 +30,13 @@ class PeerService {
       })
 
       this.peer.on('error', (error) => {
-        console.error('PeerJS error:', error)
+        if (error.type === 'network' || error.type === 'server-error') {
+          console.error('PeerJS cloud server error:', error)
+          setTimeout(() => {
+            console.log('Attempting to reconnect to PeerJS server...')
+            this.peer.reconnect()
+          }, 5000)
+        }
         reject(error)
       })
 

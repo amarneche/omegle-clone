@@ -1,7 +1,6 @@
 const express = require('express')
 const { createServer } = require('http')
 const { Server } = require('socket.io')
-const { PeerServer } = require('peer')
 const cors = require('cors')
 const os = require('os')
 
@@ -23,28 +22,6 @@ const getLocalIP = () => {
 
 const LOCAL_IP = getLocalIP()
 const PORT = process.env.PORT || 3000
-
-// Create PeerJS server with explicit WebSocket server
-const peerServer = PeerServer({
-  port: 9000,
-  path: '/peerjs',
-  proxied: true,
-  ssl: {
-    key: process.env.SSL_KEY_PATH,    // Add if using SSL
-    cert: process.env.SSL_CERT_PATH   // Add if using SSL
-  },
-  allow_discovery: true,
-  debug: true
-})
-
-// Log PeerJS events
-peerServer.on('connection', (client) => {
-  console.log('PeerJS Client connected:', client.getId())
-})
-
-peerServer.on('disconnect', (client) => {
-  console.log('PeerJS Client disconnected:', client.getId())
-})
 
 // Configure CORS
 app.use(cors({
@@ -208,7 +185,6 @@ httpServer.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on:`)
   console.log(`- Local: http://localhost:${PORT}`)
   console.log(`- Network: http://${LOCAL_IP}:${PORT}`)
-  console.log(`PeerJS server running on port 9000`)
 })
 
 // ... rest of the server code ... 
