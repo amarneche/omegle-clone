@@ -39,10 +39,27 @@ const io = new Server(httpServer, {
 const activeUsers = new Map()
 const waitingQueue = []
 
+// Add more detailed logging middleware
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`)
+  next()
+})
+
+// Enhance Socket.IO logging
+io.engine.on('connection_error', (err) => {
+  console.error('Socket.IO connection error:', err)
+})
+
 io.on('connection', (socket) => {
-  console.log('User connected:', socket.id)
+  console.log(`${new Date().toISOString()} - New socket connection:`, {
+    socketId: socket.id,
+    transport: socket.conn.transport.name,
+    remoteAddress: socket.handshake.address,
+    headers: socket.handshake.headers['x-forwarded-for'] || socket.handshake.address
+  })
   
   socket.on('set-username', (username) => {
+    console.log(`${new Date().toISOString()} - User ${socket.id} set username:`, username)
     activeUsers.set(socket.id, {
       username,
       peerId: null,
@@ -51,12 +68,15 @@ io.on('connection', (socket) => {
       preferences: { language: 'any' }
     })
     io.emit('online-users', activeUsers.size)
+    console.log('Active users count:', activeUsers.size)
   })
 
   socket.on('register-peer', (peerId) => {
+    console.log(`${new Date().toISOString()} - User ${socket.id} registered peer:`, peerId)
     const user = activeUsers.get(socket.id)
     if (user) {
       user.peerId = peerId
+      console.log('Updated user data:', user)
     }
   })
 
@@ -104,8 +124,16 @@ io.on('connection', (socket) => {
   }
 
   socket.on('find-partner', () => {
+    console.log(`${new Date().toISOString()} - User ${socket.id} requesting partner`)
     const user = activeUsers.get(socket.id)
-    if (!user || user.inCall || !user.peerId) return
+    if (!user || user.inCall || !user.peerId) {
+      console.log('Cannot find partner:', { 
+        userExists: !!user, 
+        inCall: user?.inCall, 
+        hasPeerId: user?.peerId 
+      })
+      return
+    }
 
     // Remove from waiting if already waiting
     const waitingIndex = waitingQueue.findIndex(id => id === socket.id)
@@ -171,20 +199,31 @@ io.on('connection', (socket) => {
   })
 
   socket.on('disconnect', () => {
+    console.log(`${new Date().toISOString()} - User disconnected:`, socket.id)
     const waitingIndex = waitingQueue.findIndex(id => id === socket.id)
     if (waitingIndex !== -1) {
       waitingQueue.splice(waitingIndex, 1)
     }
     activeUsers.delete(socket.id)
     io.emit('online-users', activeUsers.size)
+    console.log('Active users after disconnect:', activeUsers.size)
   })
 })
 
-// Start the server
+// Enhanced server startup logging
 httpServer.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server running on:`)
-  console.log(`- Local: http://localhost:${PORT}`)
-  console.log(`- Network: http://${LOCAL_IP}:${PORT}`)
+  console.log('=================================')
+  console.log(`${new Date().toISOString()} - Server started`)
+  console.log(`Environment: ${process.env.NODE_ENV}`)
+  console.log(`Port: ${PORT}`)
+  console.log(`Local IP: ${LOCAL_IP}`)
+  console.log('Socket.IO CORS config:', io.opts.cors)
+  console.log('=================================')
+})
+
+// Add error handling for the HTTP server
+httpServer.on('error', (error) => {
+  console.error('HTTP Server error:', error)
 })
 
 // ... rest of the server code ... 

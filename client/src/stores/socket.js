@@ -36,15 +36,21 @@ export const useSocketStore = defineStore('socket', {
       })
       
       this.socket.on('connect', () => {
+        console.log('Socket connected successfully with ID:', this.socket.id)
         this.isConnected = true
         console.log('Connected to server:', serverUrl)
       })
 
       this.socket.on('connect_error', (error) => {
-        console.error('Connection error:', error)
+        console.error('Socket connection error:', error)
       })
 
-      this.socket.on('disconnect', () => {
+      this.socket.on('connect_timeout', () => {
+        console.error('Socket connection timeout')
+      })
+
+      this.socket.on('disconnect', (reason) => {
+        console.log('Socket disconnected:', reason)
         this.isConnected = false
         console.log('Disconnected from server')
         const webrtcStore = useWebRTCStore()
