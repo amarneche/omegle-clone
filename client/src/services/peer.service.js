@@ -15,7 +15,7 @@ class PeerService {
       const isLocalhost = host === 'localhost' || host === '127.0.0.1'
 
       this.peer = new Peer(uuidv4(), {
-        host: host,
+        host: "chat-api.amarneche.me",
         port: protocol === 'https:' ? 443 : 80,
         path: '/peerjs',
         secure: protocol === 'https:',
