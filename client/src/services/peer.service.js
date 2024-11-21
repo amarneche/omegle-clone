@@ -17,7 +17,7 @@ class PeerService {
       this.peer = new Peer(uuidv4(), {
         host: "chat-api.amarneche.me",
         port: protocol === 'https:' ? 443 : 80,
-        path: '/peerjs',
+        path: '/',
         secure: protocol === 'https:',
         debug: 2,
 
