@@ -16,14 +16,17 @@ class PeerService {
 
       this.peer = new Peer(uuidv4(), {
         host: host,
-        port: isLocalhost ? 9000 : (window.location.port || 80),
+        port: protocol === 'https:' ? 443 : 80,
         path: '/peerjs',
-        debug: 2,
         secure: protocol === 'https:',
+        debug: 2,
         config: {
           iceServers: [
             { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun1.l.google.com:19302' }
+            { urls: 'stun:stun1.l.google.com:19302' },
+            { urls: 'stun:stun2.l.google.com:19302' },
+            { urls: 'stun:stun3.l.google.com:19302' },
+            { urls: 'stun:stun4.l.google.com:19302' }
           ]
         }
       })
@@ -36,6 +39,15 @@ class PeerService {
       this.peer.on('error', (error) => {
         console.error('PeerJS error:', error)
         reject(error)
+      })
+
+      this.peer.on('connection', (conn) => {
+        console.log('Peer connection established:', conn.peer)
+      })
+
+      this.peer.on('disconnected', () => {
+        console.log('Peer disconnected. Attempting to reconnect...')
+        this.peer.reconnect()
       })
     })
   }
