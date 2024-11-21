@@ -10,7 +10,7 @@ class PeerService {
 
   initialize() {
     return new Promise((resolve, reject) => {
-      const host = process.env.VITE_SERVER_URL
+      const host = import.meta.env.VITE_SERVER_URL
       const protocol = window.location.protocol
       const isLocalhost = host === 'localhost' || host === '127.0.0.1'
 
