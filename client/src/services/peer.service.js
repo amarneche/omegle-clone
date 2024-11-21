@@ -10,13 +10,17 @@ class PeerService {
 
   initialize() {
     return new Promise((resolve, reject) => {
-      const host = window.location.hostname
+      const host = process.env.VITE_SERVER_URL
       const protocol = window.location.protocol
       const isLocalhost = host === 'localhost' || host === '127.0.0.1'
 
       this.peer = new Peer(uuidv4(), {
+        host: host,
+        port: protocol === 'https:' ? 443 : 80,
+        path: '/peerjs',
         secure: protocol === 'https:',
-        debug: 3,
+        debug: 2,
+
       })
 
       this.peer.on('open', (id) => {
