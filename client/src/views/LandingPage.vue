@@ -56,20 +56,7 @@
             <p class="text-gray-400">Join {{ onlineUsers }} people chatting right now</p>
           </div>
 
-          <!-- Name Input -->
-          <div class="mb-6">
-            <label class="block text-sm font-medium text-gray-300 mb-2">Choose Your Display Name</label>
-            <div class="relative">
-              <input 
-                v-model="username"
-                type="text"
-                class="w-full px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white 
-                       placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Enter your name (optional)"
-              >
-              <User class="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-            </div>
-          </div>
+
 
           <!-- Quick Stats -->
           <div class="grid grid-cols-2 gap-4 mb-6">
@@ -310,7 +297,6 @@ const featuresSection = ref(null)
 
 
 const startChat = () => {
-  socketStore.setUsername(username.value || generateRandomName())
   router.push('/chat')
 }
 

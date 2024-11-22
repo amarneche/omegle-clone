@@ -11,14 +11,12 @@
             <RemoteVideo
               :stream="webrtcStore.remoteStream"
               :partner-name="partnerName"
-              class="rounded-md overflow-hidden"
-             
+              class="rounded-md overflow-hidden h-[calc(40vh)]"             
             />
-            
             <!-- Local Video -->
             <LocalVideo 
               :stream="webrtcStore.localStream"    
-              class="rounded-md overflow-hidden"          
+              class="rounded-md overflow-hidden h-[calc(40vh)]"          
             />
           </div>
 
@@ -36,6 +34,7 @@
               @skip="skipPartner"
             />
           </div>
+
         </div>
 
         <!-- Right Side - Chat & Settings -->
@@ -58,22 +57,6 @@
       </div>
     </main>
 
-    <!-- Mobile Controls -->
-    <div class="fixed md:hidden bottom-0 left-0 right-0 bg-gray-800/95 backdrop-blur-sm">
-      <div class="px-4 py-3">
-        <ChatControls
-          :is-camera-on="webrtcStore.isCameraOn"
-          :is-mic-on="webrtcStore.isMicOn"
-          :is-searching="socketStore.isSearching"
-          :is-in-call="!!socketStore.currentPartner"
-          @toggle-camera="toggleCamera"
-          @toggle-mic="toggleMicrophone"
-          @start="startChat"
-          @end-call="endCall"
-          @skip="skipPartner"
-        />
-      </div>
-    </div>
 
     <!-- Settings Panel with Teleport -->
     <Teleport to="body">
