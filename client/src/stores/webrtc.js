@@ -8,31 +8,27 @@ export const useWebRTCStore = defineStore('webrtc', {
     remoteStream: null,
     isCameraOn: true,
     isMicOn: true,
-    peerId: null
+    peerId: null,
+    currentCall: null
   }),
 
   actions: {
     async initialize() {
       try {
-        // Get media stream
         this.localStream = await navigator.mediaDevices.getUserMedia({
           video: true,
           audio: true
         })
 
-        // Initialize PeerJS
-        const socketStore = useSocketStore()
         this.peerId = await PeerService.initialize()
-        socketStore.socket.emit('register-peer', this.peerId)
-
-        // Handle incoming calls
+        
         PeerService.onIncomingCall(async (remoteStream) => {
           this.remoteStream = remoteStream
         })
 
         return true
       } catch (error) {
-        console.error('Failed to initialize:', error)
+        console.error('WebRTC initialization failed:', error)
         return false
       }
     },
@@ -40,9 +36,11 @@ export const useWebRTCStore = defineStore('webrtc', {
     async callPeer(remotePeerId) {
       try {
         this.remoteStream = await PeerService.call(remotePeerId, this.localStream)
+        this.currentCall = remotePeerId
       } catch (error) {
-        console.error('Error calling peer:', error)
-        throw error
+        console.error('Call failed:', error)
+        const socketStore = useSocketStore()
+        socketStore.disconnectCall()
       }
     },
 
@@ -51,6 +49,8 @@ export const useWebRTCStore = defineStore('webrtc', {
       if (videoTrack) {
         videoTrack.enabled = !videoTrack.enabled
         this.isCameraOn = videoTrack.enabled
+        const socketStore = useSocketStore()
+        socketStore.updateMediaStatus('camera', this.isCameraOn)
       }
     },
 
@@ -59,6 +59,8 @@ export const useWebRTCStore = defineStore('webrtc', {
       if (audioTrack) {
         audioTrack.enabled = !audioTrack.enabled
         this.isMicOn = audioTrack.enabled
+        const socketStore = useSocketStore()
+        socketStore.updateMediaStatus('microphone', this.isMicOn)
       }
     },
 
@@ -67,7 +69,10 @@ export const useWebRTCStore = defineStore('webrtc', {
         this.remoteStream.getTracks().forEach(track => track.stop())
         this.remoteStream = null
       }
-      PeerService.endCall()
+      if (this.currentCall) {
+        PeerService.endCall(this.currentCall)
+        this.currentCall = null
+      }
     }
   }
 }) 

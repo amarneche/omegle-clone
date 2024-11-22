@@ -1,63 +1,58 @@
 <template>
   <div class="h-screen overflow-hidden bg-gradient-to-br from-gray-900 to-gray-800">
-    <!-- Mobile Header -->
-    <header class="md:hidden fixed top-0 left-0 right-0 z-50 bg-gray-800/95 backdrop-blur-sm">
-      <div class="max-w-7xl mx-auto px-4 py-3">
-        <ChatHeader
-          :online-users="onlineUsers"
-          :is-settings-open="isSettingsOpen"
-          @toggle-settings="isSettingsOpen = !isSettingsOpen"
-        />
-      </div>
-    </header>
-
     <!-- Main Content -->
-    <main class="md:h-screen md:p-4">
+    <main class="h-screen p-4">
       <div class="h-full flex flex-col md:flex-row md:gap-4 md:max-w-7xl md:mx-auto">
         <!-- Left Side - Videos -->
-        <div class="relative h-[100vh] md:h-full md:w-1/2 bg-gray-900 md:rounded-xl overflow-hidden">
-          <!-- Desktop Header -->
-          <div class="hidden md:block absolute top-0 left-0 right-0 z-10 p-4 bg-gradient-to-b from-gray-900/90 to-transparent">
+        <div class="relative md:w-1/3 flex flex-col bg-gray-900 md:rounded-xl overflow-hidden">
+          <!-- Videos Stack -->
+          <div class="relative grid grid-cols-1 gap-4 p-4">
+            <!-- Remote Video -->
+            <RemoteVideo
+              :stream="webrtcStore.remoteStream"
+              :partner-name="partnerName"
+              class="rounded-md overflow-hidden"
+             
+            />
+            
+            <!-- Local Video -->
+            <LocalVideo 
+              :stream="webrtcStore.localStream"    
+              class="rounded-md overflow-hidden"          
+            />
+          </div>
+
+          <!-- Video Controls -->
+          <div class="p-3 bg-gradient-to-t from-gray-900 to-transparent absolute bottom-0 left-0 right-0">
+            <ChatControls
+              :is-camera-on="webrtcStore.isCameraOn"
+              :is-mic-on="webrtcStore.isMicOn"
+              :is-searching="socketStore.isSearching"
+              :is-in-call="!!socketStore.currentPartner"
+              @toggle-camera="toggleCamera"
+              @toggle-mic="toggleMicrophone"
+              @start="startChat"
+              @end-call="endCall"
+              @skip="skipPartner"
+            />
+          </div>
+        </div>
+
+        <!-- Right Side - Chat & Settings -->
+        <div class="hidden md:flex flex-1 flex-col md:relative bg-gray-800/50 rounded-xl overflow-hidden">
+          <div class="p-6 pb-0">
             <ChatHeader
               :online-users="onlineUsers"
               :is-settings-open="isSettingsOpen"
               @toggle-settings="isSettingsOpen = !isSettingsOpen"
             />
+            
+
           </div>
 
-          <RemoteVideo
-            :stream="webrtcStore.remoteStream"
-            :partner-name="partnerName"
-          />
-          
-          <LocalVideo :stream="webrtcStore.localStream" />
-        </div>
-
-        <!-- Right Side - Chat & Settings -->
-        <div class="hidden md:flex flex-1 flex-col md:relative">
-          <SettingsPanel
-            v-show="isSettingsOpen"
-            :mood="mood"
-            @close="isSettingsOpen = false"
-          />
-
-          <!-- Chat Area -->
-          <div class="flex-1 bg-gray-800/50 rounded-xl p-6">
-            <div class="flex-1 overflow-y-auto">
-              <div class="text-gray-400 text-center">
-                {{ isSearching ? 'Searching for a partner...' : partnerName ? 'Chat started' : 'Click "Find Partner" to start' }}
-              </div>
-            </div>
-
-            <ChatControls
-              :is-camera-on="webrtcStore.isCameraOn"
-              :is-mic-on="webrtcStore.isMicOn"
-              :is-searching="isSearching"
-              @toggle-camera="toggleCamera"
-              @toggle-mic="toggleMicrophone"
-              @find-partner="findPartner"
-              @end-call="endCall"
-            />
+          <!-- Chat Messages and Input -->
+          <div class="flex-1 flex flex-col min-h-0">
+            <ChatMessages />
           </div>
         </div>
       </div>
@@ -69,28 +64,38 @@
         <ChatControls
           :is-camera-on="webrtcStore.isCameraOn"
           :is-mic-on="webrtcStore.isMicOn"
-          :is-searching="isSearching"
+          :is-searching="socketStore.isSearching"
+          :is-in-call="!!socketStore.currentPartner"
           @toggle-camera="toggleCamera"
           @toggle-mic="toggleMicrophone"
-          @find-partner="findPartner"
+          @start="startChat"
           @end-call="endCall"
-          mobile
+          @skip="skipPartner"
         />
       </div>
     </div>
 
-    <!-- Mobile Settings Panel -->
-    <SettingsPanel
-      v-if="isSettingsOpen"
-      class="md:hidden fixed inset-0 bg-gray-900/95 backdrop-blur-sm z-50 p-4 overflow-y-auto"
-      :mood="mood"
-      @close="isSettingsOpen = false"
-    />
+    <!-- Settings Panel with Teleport -->
+    <Teleport to="body">
+      <Transition name="fade">
+        <SettingsPanel
+          v-if="isSettingsOpen"
+          :show="isSettingsOpen"
+          :initial-settings="{
+            username: settingsStore.username,
+            mood: settingsStore.mood,
+            preferences: settingsStore.preferences
+          }"
+          @close="handleSettingsClose"
+          @update="handleSettingsUpdate"
+        />
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { onBeforeRouteLeave, useRouter } from 'vue-router'
 import { useWebRTCStore } from '@/stores/webrtc'
 import { useSocketStore } from '@/stores/socket'
@@ -102,20 +107,32 @@ import ChatControls from '@/components/chat/ChatControls.vue'
 import SettingsPanel from '@/components/chat/SettingsPanel.vue'
 import RemoteVideo from '@/components/video/RemoteVideo.vue'
 import LocalVideo from '@/components/video/LocalVideo.vue'
+import PartnerInfo from '@/components/chat/PartnerInfo.vue'
+import ChatMessages from '@/components/chat/ChatMessages.vue'
 
 const router = useRouter()
 const webrtcStore = useWebRTCStore()
 const socketStore = useSocketStore()
 const settingsStore = useSettingsStore()
 
-const isSearching = ref(false)
-const partnerName = ref('')
-const onlineUsers = ref(0)
 const isSettingsOpen = ref(false)
+
+// Computed properties
+const isSearching = computed(() => socketStore.isSearching)
+const onlineUsers = computed(() => socketStore.onlineUsers)
+const partnerName = computed(() => socketStore.currentPartner?.username || '')
 const mood = computed(() => settingsStore.mood)
 
+// Watch for settings panel state to manage body scroll
+watch(isSettingsOpen, (isOpen) => {
+  if (isOpen) {
+    document.body.classList.add('panel-open')
+  } else {
+    document.body.classList.remove('panel-open')
+  }
+})
+
 onMounted(async () => {
-  // Initialize WebRTC with PeerJS
   const success = await webrtcStore.initialize()
   if (!success) {
     alert('Failed to access camera/microphone')
@@ -123,70 +140,65 @@ onMounted(async () => {
     return
   }
 
-  setupSocketListeners()
-})
+  socketStore.initializeSocket()
+  
+  // Start searching with initial user info
+  socketStore.startChat({
+    username: settingsStore.username,
+    mood: settingsStore.mood,
+    preferences: settingsStore.preferences
+  })
 
-onUnmounted(() => {
-  webrtcStore.cleanup()
-})
-
-const setupSocketListeners = () => {
-  socketStore.socket.on('partner-found', async ({ peerId, username }) => {
-    try {
-      console.log('Partner found:', username, peerId)
-      isSearching.value = false
-      partnerName.value = username
-      currentPartnerId.value = peerId
-      
-      // Call the peer using PeerJS
-      await webrtcStore.callPeer(peerId)
-    } catch (error) {
-      console.error('Error in partner-found handler:', error)
-      endCall()
+  // Add watchers for partner media status
+  watch(() => socketStore.currentPartner, (partner) => {
+    if (partner) {
+      console.log('Connected to partner:', partner.username)
     }
   })
 
-  socketStore.socket.on('call-ended', (partnerId) => {
-    console.log('Call ended by partner:', partnerId)
-    endCurrentCall()
-    // Automatically start looking for new partner
-    findPartner()
+  // Add handlers for partner media status updates
+  socketStore.socket?.on('toggle_camera_status', (status) => {
+    if (socketStore.currentPartner) {
+      socketStore.currentPartner.isCameraOn = status
+    }
   })
 
-  socketStore.socket.on('partner-left', () => {
-    console.log('Partner left the chat')
-    endCurrentCall()
-    // Don't automatically find new partner when partner leaves chat
+  socketStore.socket?.on('toggle_microphone_status', (status) => {
+    if (socketStore.currentPartner) {
+      socketStore.currentPartner.isMicOn = status
+    }
   })
+})
 
-  socketStore.socket.on('waiting-for-partner', () => {
-    console.log('Waiting for partner...')
-    isSearching.value = true
+onUnmounted(() => {
+  socketStore.disconnectCall()
+  webrtcStore.cleanup()
+  document.body.classList.remove('panel-open')
+})
+
+onBeforeRouteLeave(() => {
+  socketStore.disconnectCall()
+  webrtcStore.cleanup()
+})
+
+// Event handlers
+const startChat = () => {
+  socketStore.startChat({
+    username: settingsStore.username,
+    mood: settingsStore.mood,
+    preferences: settingsStore.preferences,
+    peerId: webrtcStore.peerId
   })
-
-  socketStore.socket.on('online-users', (count) => {
-    onlineUsers.value = count
-  })
-}
-
-const currentPartnerId = ref(null)
-
-const findPartner = () => {
-  isSearching.value = true
-  socketStore.socket.emit('find-partner')
 }
 
 const endCall = () => {
-  // End call with current partner and look for new one
-  socketStore.socket.emit('end-call', currentPartnerId.value)
-  endCurrentCall()
-  findPartner()
+  socketStore.disconnectCall()
+  webrtcStore.cleanup()
 }
 
-const endCurrentCall = () => {
+const skipPartner = () => {
+  socketStore.skipPartner()
   webrtcStore.cleanup()
-  currentPartnerId.value = null
-  partnerName.value = ''
 }
 
 const toggleCamera = () => {
@@ -197,11 +209,27 @@ const toggleMicrophone = () => {
   webrtcStore.toggleMicrophone()
 }
 
-onBeforeRouteLeave(() => {
-  // Notify server when leaving chat page
-  socketStore.socket.emit('leave-chat')
-  webrtcStore.cleanup()
-})
+const sendMessage = (message) => {
+  socketStore.sendMessage(message)
+}
+
+// Settings panel handlers
+const handleSettingsClose = () => {
+  isSettingsOpen.value = false
+}
+
+const handleSettingsUpdate = (newSettings) => {
+  // Update all settings at once
+  settingsStore.updateAllSettings(newSettings)
+  
+  // If we're connected to a partner, notify them of the changes
+  if (socketStore.currentPartner) {
+    socketStore.updateUserInfo({
+      ...newSettings,
+      type: 'settings_update'
+    })
+  }
+}
 </script>
 
 <style scoped>
@@ -231,5 +259,16 @@ onBeforeRouteLeave(() => {
 /* Smooth transitions */
 .transition-all {
   transition: all 0.3s ease;
+}
+
+/* Add transition styles */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 </style>

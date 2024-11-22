@@ -1,7 +1,7 @@
 <template>
   <div class="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800">
     <!-- Navigation -->
-    <nav class="absolute top-0 left-0 right-0 p-4">
+    <nav class="md:absolute top-0 left-0 right-0 p-4">
       <div class="max-w-7xl mx-auto flex justify-between items-center">
         <div class="flex items-center gap-2">
           <div class="p-2 bg-blue-500 rounded-lg">
@@ -307,11 +307,7 @@ const username = ref('')
 const onlineUsers = ref(0)
 const featuresSection = ref(null)
 
-onMounted(() => {
-  socketStore.socket.on('online-users', (count) => {
-    onlineUsers.value = count
-  })
-})
+
 
 const startChat = () => {
   socketStore.setUsername(username.value || generateRandomName())
