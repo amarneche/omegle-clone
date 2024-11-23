@@ -2,7 +2,7 @@
   <div>
     <!-- Backdrop -->
     <div 
-      class="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-opacity duration-300"
+      class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 transition-opacity duration-300"
       :class="{ 'opacity-0': !show, 'opacity-100': show }"
       @click="handleClose"
     ></div>
@@ -11,8 +11,8 @@
     <div 
       class="fixed z-50 transition-transform duration-300 ease-out transform bg-gray-900 shadow-xl"
       :class="[
-        'md:w-[400px] w-full h-full', 
-        'md:right-0 md:top-0',
+        'md:w-[400px] w-screen h-full', 
+        'md:right-0 md:top-0 max-md:inset-0',
         show ? 'translate-x-0' : 'translate-x-full'
       ]"
     >
