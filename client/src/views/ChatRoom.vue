@@ -1,5 +1,5 @@
 <template>
-  <div class="h-screen overflow-hidden bg-gradient-to-br from-gray-900 to-gray-800">
+  <div class="h-dvh overflow-hidden bg-gradient-to-br from-gray-900 to-gray-800">
     <!-- Connection Status -->
     <div 
       v-if="!socketStore.isConnected" 
@@ -9,7 +9,7 @@
     </div>
 
     <!-- Main Content -->
-    <main class="h-screen relative">
+    <main class="h-dvh relative">
       <!-- Desktop Layout -->
       <div class="hidden md:flex h-full p-4">
         <div class="flex flex-row gap-4 max-w-7xl mx-auto w-full">
