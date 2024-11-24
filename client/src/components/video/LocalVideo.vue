@@ -1,5 +1,5 @@
 <template>
-  <div class=" w-full h-full bg-gray-900">
+  <div class="bg-gray-900">
     <video
       ref="videoRef"
       class="w-full h-full object-cover mirror"
